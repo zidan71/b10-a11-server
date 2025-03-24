@@ -31,6 +31,12 @@ async function run() {
     await client.connect();
 
 
+    app.get('/tutors',async(req,res)=>{
+        const cursor = tutorsCollection.find()
+        const result = await cursor.toArray()
+        res.send(result)
+    })
+
 
     app.post('/tutors',async (req,res)=>{
         const query = req.body
