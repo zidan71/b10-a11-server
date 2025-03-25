@@ -24,7 +24,7 @@ const client = new MongoClient(uri, {
 
 
 const tutorsCollection = client.db('tutorCollection').collection('tutors')
-
+const bookTutorsCollection = client.db('tutorCollection').collection('bookTutors')
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -70,8 +70,15 @@ async function run() {
     })
 
 
+    // book tutors related api
 
+    app.post('/bookTutors',async(req,res)=> {
+      const tutor = req.body;
+      const result = await bookTutorsCollection.insertOne(tutor)
+      res.send(result)
+    })
 
+    
 
 
     // Send a ping to confirm a successful connection
