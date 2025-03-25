@@ -73,6 +73,14 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/tutors/category/:category', async (req, res) => {
+      const category = req.params.category; // Get the category (language) from URL
+      const query = { language: category }; // Find tutors where language matches
+      const result = await tutorsCollection.find(query).toArray();
+      res.send(result);
+    });
+    
+
 
     // book tutors related api
 
@@ -88,8 +96,7 @@ async function run() {
       res.send(result)
     })
 
-    // review increase by 1
-    // Increment the review count for a specific tutor
+    
    
   
     app.put('/tutors/review/:id', async (req, res) => {
