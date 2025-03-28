@@ -1,13 +1,35 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config()
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 const port = process.env.PORT || 5000;
 const app = express()
 
 // middleware
 app.use(express.json())
-app.use(cors())
+app.use(cors({
+  origin:['http://localhost:5173'],
+  credentials:true
+}))
+app.use(cookieParser())
 
+const verify = async(req,res,next) => {
+  const token = req.cookies?.token
+  if(!token){
+    return res.status(401).send({message:"unauthorized access"})
+  }
+
+  jwt.verify(token,process.env.Secret,(err,decoded)=> {
+    if(err){
+     return res.status(401).send({message:"unauthorized access"})
+    }
+
+    next()
+
+  })
+
+}
 
 
 const { MongoClient, ServerApiVersion, ObjectId, Db } = require('mongodb');
@@ -34,12 +56,13 @@ async function run() {
     await client.connect();
 
 
-    app.get('/tutors', async (req, res) => {
-      const cursor = tutorsCollection.find()
-      const result = await cursor.toArray()
-      
-      res.send(result)
-    })
+    app.get('/tutors',verify, async (req, res) => {
+      const search = req.query.search || ""; // Get search query from URL
+      const filter = search ? { language: { $regex: search, $options: "i" } } : {}; // Case-insensitive search
+      const result = await tutorsCollection.find(filter).toArray();
+      res.send(result);
+    });
+    
 
     app.get('/tutors/:id', async (req, res) => {
       const id = req.params.id;
@@ -55,7 +78,7 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/tutors', async (req, res) => {
+    app.post('/tutors',verify, async (req, res) => {
       const query = req.body
       const result = await tutorsCollection.insertOne(query)
       res.send(result)
@@ -79,18 +102,20 @@ async function run() {
       const result = await tutorsCollection.find(query).toArray();
       res.send(result);
     });
+
+    
     
 
 
     // book tutors related api
 
-    app.post('/bookTutors', async (req, res) => {
+    app.post('/bookTutors',verify, async (req, res) => {
       const tutor = req.body;
       const result = await bookTutorsCollection.insertOne(tutor)
       res.send(result)
     })
 
-    app.get('/bookTutors', async (req, res) => {
+    app.get('/bookTutors', verify, async (req, res) => {
       const query = bookTutorsCollection.find()
       const result = await query.toArray()
       res.send(result)
@@ -112,6 +137,21 @@ async function run() {
         res.send(result)      
     });
     
+    // auth related api
+
+    app.post('/jwt',(req,res)=> {
+      const user = req.body
+      const token = jwt.sign(user,process.env.Secret,{expiresIn:'5h'})
+
+      res.cookie('token',token,{
+        httpOnly:true,
+        secure:false
+      }).send({success: true})
+    })
+
+    app.post('/logOut',(req,res)=> {
+      res.clearCookie('token',{httpOnly:true,secure:false}).send({success:true})
+    })
 
 
     // Send a ping to confirm a successful connection
