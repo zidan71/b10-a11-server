@@ -9,27 +9,15 @@ const app = express()
 // middleware
 app.use(express.json())
 app.use(cors({
-  origin:['http://localhost:5173'],
+  origin:['http://localhost:5173',
+    'https://tutor-7393c.firebaseapp.com',
+    'https://tutor-7393c.web.app'
+  ],
   credentials:true
 }))
 app.use(cookieParser())
 
-const verify = async(req,res,next) => {
-  const token = req.cookies?.token
-  if(!token){
-    return res.status(401).send({message:"unauthorized access"})
-  }
 
-  jwt.verify(token,process.env.Secret,(err,decoded)=> {
-    if(err){
-     return res.status(401).send({message:"unauthorized access"})
-    }
-
-    next()
-
-  })
-
-}
 
 
 const { MongoClient, ServerApiVersion, ObjectId, Db } = require('mongodb');
@@ -53,10 +41,10 @@ const bookTutorsCollection = client.db('tutorCollection').collection('bookTutors
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
 
-    app.get('/tutors',verify, async (req, res) => {
+    app.get('/tutors', async (req, res) => {
       const search = req.query.search || ""; // Get search query from URL
       const filter = search ? { language: { $regex: search, $options: "i" } } : {}; // Case-insensitive search
       const result = await tutorsCollection.find(filter).toArray();
@@ -78,7 +66,7 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/tutors',verify, async (req, res) => {
+    app.post('/tutors', async (req, res) => {
       const query = req.body
       const result = await tutorsCollection.insertOne(query)
       res.send(result)
@@ -109,13 +97,13 @@ async function run() {
 
     // book tutors related api
 
-    app.post('/bookTutors',verify, async (req, res) => {
+    app.post('/bookTutors', async (req, res) => {
       const tutor = req.body;
       const result = await bookTutorsCollection.insertOne(tutor)
       res.send(result)
     })
 
-    app.get('/bookTutors', verify, async (req, res) => {
+    app.get('/bookTutors',  async (req, res) => {
       const query = bookTutorsCollection.find()
       const result = await query.toArray()
       res.send(result)
@@ -145,17 +133,25 @@ async function run() {
 
       res.cookie('token',token,{
         httpOnly:true,
-        secure:false
-      }).send({success: true})
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+
+      }).send()
     })
 
     app.post('/logOut',(req,res)=> {
-      res.clearCookie('token',{httpOnly:true,secure:false}).send({success:true})
+      res.clearCookie('token',{
+        httpOnly:true,
+        secure:process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+
+
+      }).send()
     })
 
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
